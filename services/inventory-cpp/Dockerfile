@@ -6,15 +6,14 @@ FROM gcc:11.2.0 AS builder
 
 WORKDIR /app
 
-# --- FIX: Install CMake ---
-# First, update the package lists, then install cmake.
-# The '-y' flag automatically answers 'yes' to any prompts.
-RUN apt-get update && apt-get install -y cmake
+# Install build tools (cmake) and dependency libraries (hiredis)
+RUN apt-get update && apt-get install -y cmake libhiredis-dev
 
 # Copy the source code
 COPY . .
 
-# Create a build directory
+# Create a build directory and configure the project
+# This will also download Crow and redis-plus-plus via CMake
 RUN cmake -B ./build
 
 # Compile the project
@@ -23,6 +22,9 @@ RUN cmake --build ./build -j "$(nproc)"
 # ---- Runtime Stage ----
 # Use a minimal base image for the final container
 FROM alpine:latest
+
+# Install the runtime dependency for the redis client
+RUN apk add --no-cache hiredis
 
 WORKDIR /app
 
