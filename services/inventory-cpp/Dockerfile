@@ -3,7 +3,7 @@
 FROM alpine:3.18 AS builder
 
 # Install build dependencies, INCLUDING hiredis-dev
-RUN apk add --no-cache build-base cmake git hiredis-dev
+RUN apk add --no-cache build-base cmake git hiredis-dev wget
 
 WORKDIR /app
 
@@ -18,7 +18,7 @@ WORKDIR /app
 COPY . .
 
 # Include Crow header-only library
-RUN wget https://github.com/CrowCpp/Crow/releases/download/v1.0.8/crow_all.h -P /usr/local/include
+RUN wget https://raw.githubusercontent.com/CrowCpp/Crow/v1.0.8/amalgamate/crow_all.h -O /usr/local/include/crow_all.h
 
 # Update CMakeLists to find and link redis-plus-plus
 RUN echo 'find_package(redis-plus-plus REQUIRED)' >> CMakeLists.txt
