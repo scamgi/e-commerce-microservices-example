@@ -50,6 +50,42 @@ services:
       flyway-users:
         condition: service_completed_successfully
 
+  # --- Products Service Database (MongoDB) ---
+  mongo-products:
+    image: mongo:latest
+    container_name: mongo-products-db
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=your_secure_password
+      - MONGO_INITDB_DATABASE=products
+    volumes:
+      - mongo_products_data:/data/db
+    healthcheck:
+      test: |
+        mongosh --host localhost --port 27017 --username admin --password your_secure_password --authenticationDatabase admin --eval "quit(db.runCommand({ ping: 1 }).ok ? 0 : 2)"
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # --- The Node.js Products Service ---
+  products-service:
+    build: ./services/products-nodejs
+    container_name: products-service-app
+    ports:
+      - "8082:8082"
+    environment:
+      - DB_HOST=mongo-products
+      - DB_USER=admin
+      - DB_PASSWORD=your_secure_password
+
+    depends_on:
+      mongo-products:
+        condition: service_healthy
+
 volumes:
   postgres_users_data:
+    driver: local
+  mongo_products_data:
     driver: local
