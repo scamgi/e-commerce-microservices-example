@@ -9,13 +9,12 @@ WORKDIR /app
 
 # --- Clone and build dependencies ---
 
-# 1. Clone and build redis-plus-plus
+# 1. Clone, build, and install redis-plus-plus
 RUN git clone https://github.com/sewenew/redis-plus-plus.git
 WORKDIR /app/redis-plus-plus/build
-# This command will find the hiredis headers and succeed
 RUN cmake .. -DREDIS_PLUS_PLUS_CXX_STANDARD=17 && make && make install
 
-# 2. Clone Crow and copy its headers
+# 2. Clone and copy Crow headers
 WORKDIR /app
 RUN git clone https://github.com/CrowCpp/Crow.git
 RUN cp -r /app/Crow/include/* /usr/local/include/
@@ -24,11 +23,7 @@ RUN cp -r /app/Crow/include/* /usr/local/include/
 WORKDIR /app
 COPY . .
 
-# Update CMakeLists to find and link redis-plus-plus
-RUN echo 'find_package(redis-plus-plus REQUIRED)' >> CMakeLists.txt
-RUN echo 'target_link_libraries(inventory_server Threads::Threads redis-plus-plus::redis-plus-plus)' >> CMakeLists.txt
-
-# Build the application
+# Build the application (The CMakeLists.txt is now complete)
 RUN mkdir build && cd build && \
     cmake .. && \
     make

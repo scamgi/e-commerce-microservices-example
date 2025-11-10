@@ -5,11 +5,16 @@ project(InventoryService)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Find necessary libraries
+# Find necessary packages
 find_package(Threads REQUIRED)
+find_package(redis-plus-plus REQUIRED)
 
 # Add your source files
 add_executable(inventory_server main.cpp)
 
-# Target specific libraries to link
-# We will add libraries like Crow and redis-plus-plus here later
+# Link the libraries to your executable
+target_link_libraries(inventory_server
+    PRIVATE
+    Threads::Threads
+    redis-plus-plus::redis-plus-plus
+)
