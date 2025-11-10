@@ -83,6 +83,30 @@ services:
       mongo-products:
         condition: service_healthy
 
+  # --- Inventory Service Database (Redis) ---
+  redis-inventory:
+    image: redis:7-alpine
+    container_name: redis-inventory-db
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # --- The C++ Inventory Service ---
+  inventory-service:
+    build: ./services/inventory-cpp
+    container_name: inventory-service-app
+    ports:
+      - "8083:8083" # Use a new port
+    environment:
+      - REDIS_HOST=redis-inventory
+    depends_on:
+      redis-inventory:
+        condition: service_healthy
+
 volumes:
   postgres_users_data:
     driver: local
