@@ -79,13 +79,38 @@ services:
       - DB_HOST=mongo-products
       - DB_USER=admin
       - DB_PASSWORD=your_secure_password
-
     depends_on:
       mongo-products:
+        condition: service_healthy
+
+  # --- Inventory Service Database (Redis) ---
+  redis-inventory:
+    image: redis:7-alpine
+    container_name: redis-inventory-db
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_inventory_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # --- The C++ Inventory Service ---
+  inventory-service:
+    build: ./services/inventory-cpp
+    container_name: inventory-service-app
+    ports:
+      - "8083:8083"
+    depends_on:
+      redis-inventory:
         condition: service_healthy
 
 volumes:
   postgres_users_data:
     driver: local
   mongo_products_data:
+    driver: local
+  redis_inventory_data:
     driver: local
