@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # --- Users Service Database ---
+  postgres-users:
+    image: postgres:15-alpine
+    container_name: postgres-users-db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=your_secure_password
+      - POSTGRES_DB=users_db
+    volumes:
+      - postgres_users_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d users_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # --- Flyway Migration Service for Users DB ---
+  flyway-users:
+    image: flyway/flyway:9-alpine
+    container_name: flyway-users-migrator
+    command: -configFiles=/flyway/conf/flyway.conf migrate
+    volumes:
+      - ./services/users-go/sql:/flyway/sql
+    environment:
+      - FLYWAY_URL=jdbc:postgresql://postgres-users:5432/users_db
+      - FLYWAY_USER=admin
+      - FLYWAY_PASSWORD=your_secure_password
+    depends_on:
+      postgres-users:
+        condition: service_healthy
+
+  # --- The Actual Go Users Service ---
+  users-service:
+    build: ./services/users-go # This tells Docker to build the Dockerfile in this directory
+    container_name: users-service-app
+    ports:
+      - "8081:8081"
+    environment:
+      # We use the service name 'postgres-users' as the host, Docker's internal DNS will resolve it
+      - DB_HOST=postgres-users
+      - DB_USER=admin
+      - DB_PASSWORD=your_secure_password
+      - DB_NAME=users_db
+    depends_on:
+      flyway-users:
+        condition: service_completed_successfully
+
+volumes:
+  postgres_users_data:
+    driver: local
