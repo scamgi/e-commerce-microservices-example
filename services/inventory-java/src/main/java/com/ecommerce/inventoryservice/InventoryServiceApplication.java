@@ -1,4 +1,4 @@
-package com.ecommerce.inventory_service;
+package com.ecommerce.inventoryservice;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
