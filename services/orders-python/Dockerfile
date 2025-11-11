@@ -26,5 +26,4 @@ COPY main.py .
 # Expose the port the app runs on
 EXPOSE 8085
 
-# The command to run your application using uvicorn
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8085"]
+CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8085"]

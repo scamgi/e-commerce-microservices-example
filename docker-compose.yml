@@ -153,17 +153,20 @@ services:
     container_name: flyway-orders-migrator
     volumes:
       - ./services/orders-python/sql:/flyway/sql
-    command: >
-      sh -c "
-        echo 'Waiting for CockroachDB to be ready...';
-        sleep 10;
-        
-        echo 'Creating database orders_db if it does not exist...';
-        /flyway/flyway -url=jdbc:postgresql://cockroach-orders:26257/defaultdb?sslmode=disable -user=root -password= -initSql='CREATE DATABASE IF NOT EXISTS orders_db;' info;
-        
-        echo 'Running migrations against orders_db...';
-        /flyway/flyway -url=jdbc:postgresql://cockroach-orders:26257/orders_db?sslmode=disable -user=root -password= -locations=filesystem:/flyway/sql migrate;
-      "
+    # CORRECTED SECTION: Override the entrypoint to execute shell commands
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        echo "Waiting for CockroachDB to be ready..."
+        # Add a sleep buffer as the healthcheck only checks for readiness, not full initialization
+        sleep 10
+
+        echo "Creating database 'orders_db' if it does not exist..."
+        /flyway/flyway -url=jdbc:postgresql://cockroach-orders:26257/defaultdb?sslmode=disable -user=root -password= -initSql="CREATE DATABASE IF NOT EXISTS orders_db;" info
+
+        echo "Running database migrations on 'orders_db'..."
+        /flyway/flyway -url=jdbc:postgresql://cockroach-orders:26257/orders_db?sslmode=disable -user=root -password= -locations=filesystem:/flyway/sql migrate
     depends_on:
       cockroach-orders:
         condition: service_healthy
