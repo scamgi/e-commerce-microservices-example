@@ -4,7 +4,8 @@ import { createProxyMiddleware, type Options } from 'http-proxy-middleware';
 const app = express();
 const port = 8080; // This will be the main entry point for our app
 
-app.use(express.json());
+// REMOVED THIS LINE - This was consuming the body before the proxy could forward it.
+// app.use(express.json());
 
 // --- Define Routes and Proxies for each Microservice ---
 
@@ -59,6 +60,8 @@ const authMiddleware = (req: express.Request, res: express.Response, next: expre
 };
 
 // Apply the authentication middleware to all routes
+// NOTE: We no longer need app.use(express.json()) as the gateway is just a proxy.
+// The auth middleware only checks headers, so it's safe to run before the proxy.
 app.use(authMiddleware);
 
 // --- Create the Proxies ---

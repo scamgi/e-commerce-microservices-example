@@ -12,8 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/joho/godotenv"
-	"github.com/lib/pq"
-	_ "github.com/lib/pq" // The blank import is for the driver's side effects
+	"github.com/lib/pq" // The blank import is for the driver's side effects
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -90,14 +89,27 @@ func registerHandler(c *gin.Context) {
 		Password string `json:"password" binding:"required"`
 	}
 
+	log.Println("Received request to register a new user.")
+
 	if err := c.ShouldBindJSON(&newUser); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		// Enhanced logging and response for the binding error
+		log.Printf("Error binding JSON for user registration from Client IP: %s. Details: %v", c.ClientIP(), err)
+
+		// In a production environment, you might want to return a more generic message
+		// instead of err.Error() to avoid leaking implementation details.
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid input",
+			"details": err.Error(),
+		})
 		return
 	}
+
+	log.Printf("Attempting to register user with email: %s and username: %s", newUser.Email, newUser.Username)
 
 	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newUser.Password), bcrypt.DefaultCost)
 	if err != nil {
+		log.Printf("Error hashing password for user %s: %v", newUser.Email, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
 		return
 	}
@@ -112,13 +124,16 @@ func registerHandler(c *gin.Context) {
 	if err != nil {
 		// A more specific error check for unique constraint violation
 		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
+			log.Printf("Conflict: Attempt to register with existing username or email: %s, %s", newUser.Username, newUser.Email)
 			c.JSON(http.StatusConflict, gin.H{"error": "Username or email already exists"})
 			return
 		}
+		log.Printf("Database error during user insertion for email %s: %v", newUser.Email, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user", "details": err.Error()})
 		return
 	}
 
+	log.Printf("Successfully created user with ID: %s", userID)
 	c.JSON(http.StatusCreated, gin.H{"message": "User created successfully", "userID": userID})
 }
 
@@ -128,19 +143,26 @@ func loginHandler(c *gin.Context) {
 		Password string `json:"password" binding:"required"`
 	}
 
+	log.Println("Received request for user login.")
+
 	if err := c.ShouldBindJSON(&credentials); err != nil {
+		log.Printf("Error binding JSON for user login: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
+
+	log.Printf("Attempting to log in user with email: %s", credentials.Email)
 
 	var user User
 	var passwordHash string
 	err := db.QueryRow("SELECT id, username, email, password_hash FROM users WHERE email = $1", credentials.Email).Scan(&user.ID, &user.Username, &user.Email, &passwordHash)
 	if err != nil {
 		if err == sql.ErrNoRows {
+			log.Printf("Login failed: User with email %s not found.", credentials.Email)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 			return
 		}
+		log.Printf("Database error during login for email %s: %v", credentials.Email, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
 	}
@@ -149,9 +171,12 @@ func loginHandler(c *gin.Context) {
 	err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(credentials.Password))
 	if err != nil {
 		// If there's an error, it means the passwords don't match
+		log.Printf("Login failed: Invalid password for user %s.", credentials.Email)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return
 	}
+
+	log.Printf("Password verified for user: %s", user.Username)
 
 	// --- Create JWT Token ---
 	expirationTime := time.Now().Add(24 * time.Hour)
@@ -165,9 +190,12 @@ func loginHandler(c *gin.Context) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString(jwtKey)
 	if err != nil {
+		log.Printf("Error creating JWT token for user %s: %v", user.Username, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create token"})
 		return
 	}
+
+	log.Printf("Successfully generated JWT token for user: %s", user.Username)
 
 	c.JSON(http.StatusOK, gin.H{"token": tokenString})
 }
