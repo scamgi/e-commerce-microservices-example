@@ -107,10 +107,38 @@ services:
       redis-inventory:
         condition: service_healthy
 
+  # --- Cart Service Database (Redis) ---
+  redis-cart:
+    image: redis:7-alpine
+    container_name: redis-cart-db
+    ports:
+      - "6380:6379" # Use a different host port (6380) to avoid conflict with inventory's redis
+    volumes:
+      - redis_cart_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # --- The Node.js Cart Service ---
+  cart-service:
+    build: ./services/cart-nodejs
+    container_name: cart-service-app
+    ports:
+      - "8084:8084"
+    environment:
+      - REDIS_HOST=redis-cart
+    depends_on:
+      redis-cart:
+        condition: service_healthy
+
 volumes:
   postgres_users_data:
     driver: local
   mongo_products_data:
     driver: local
-  redis_inventory_data: # Make sure to add the volume definition at the end
+  redis_inventory_data:
+    driver: local
+  redis_cart_data:
     driver: local
