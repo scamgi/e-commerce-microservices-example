@@ -1,4 +1,17 @@
 services:
+  # --- API Gateway ---
+  api-gateway:
+    build: ./services/api-gateway-nodejs
+    container_name: api-gateway
+    ports:
+      - "8080:8080" # Main entry point for the entire application
+    depends_on:
+      - users-service
+      - products-service
+      - inventory-service
+      - cart-service
+      - orders-service
+
   # --- Users Service Database ---
   postgres-users:
     image: postgres:15-alpine
