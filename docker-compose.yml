@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # --- Users Service Database ---
   postgres-users:
@@ -132,6 +130,60 @@ services:
     depends_on:
       redis-cart:
         condition: service_healthy
+  
+  # --- Orders Service Database (CockroachDB) ---
+  cockroach-orders:
+    image: cockroachdb/cockroach:v23.1.5
+    container_name: cockroach-orders-db
+    ports:
+      - "26257:26257" # SQL port
+      - "8080:8080"   # Admin UI port
+    command: start-single-node --insecure
+    volumes:
+      - cockroach_orders_data:/cockroach/cockroach-data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health?ready=1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- Flyway Migration Service for Orders DB ---
+  flyway-orders:
+    image: flyway/flyway:9-alpine
+    container_name: flyway-orders-migrator
+    volumes:
+      - ./services/orders-python/sql:/flyway/sql
+    command: >
+      sh -c "
+        echo 'Waiting for CockroachDB to be ready...';
+        sleep 10;
+        
+        echo 'Creating database orders_db if it does not exist...';
+        /flyway/flyway -url=jdbc:postgresql://cockroach-orders:26257/defaultdb?sslmode=disable -user=root -password= -initSql='CREATE DATABASE IF NOT EXISTS orders_db;' info;
+        
+        echo 'Running migrations against orders_db...';
+        /flyway/flyway -url=jdbc:postgresql://cockroach-orders:26257/orders_db?sslmode=disable -user=root -password= -locations=filesystem:/flyway/sql migrate;
+      "
+    depends_on:
+      cockroach-orders:
+        condition: service_healthy
+
+
+  # --- The Python Orders Service ---
+  orders-service:
+    build: ./services/orders-python
+    container_name: orders-service-app
+    ports:
+      - "8085:8085"
+    environment:
+      - DB_HOST=cockroach-orders
+      - DB_PORT=26257
+      - DB_USER=root
+      - DB_DBNAME=orders_db
+    depends_on:
+      flyway-orders:
+        condition: service_completed_successfully
+
 
 volumes:
   postgres_users_data:
@@ -141,4 +193,6 @@ volumes:
   redis_inventory_data:
     driver: local
   redis_cart_data:
+    driver: local
+  cockroach_orders_data:
     driver: local
