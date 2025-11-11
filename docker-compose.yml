@@ -150,7 +150,7 @@ services:
     container_name: cockroach-orders-db
     ports:
       - "26257:26257" # SQL port
-      - "8080:8080"   # Admin UI port
+      - "8088:8080"
     command: start-single-node --insecure
     volumes:
       - cockroach_orders_data:/cockroach/cockroach-data
