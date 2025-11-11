@@ -1,5 +1,5 @@
 import express from 'express';
-import { createProxyMiddleware, Options } from 'http-proxy-middleware';
+import { createProxyMiddleware, type Options } from 'http-proxy-middleware';
 
 const app = express();
 const port = 8080; // This will be the main entry point for our app
@@ -8,48 +8,33 @@ app.use(express.json());
 
 // --- Define Routes and Proxies for each Microservice ---
 
-// Helper to log requests
-const logProvider = (provider: any) => {
-    return {
-        log: (message: string) => console.log(message),
-        info: (message: string) => console.log(message),
-        debug: (message: string) => console.log(message),
-        warn: (message: string) => console.warn(message),
-        error: (message: string) => console.error(message),
-    }
-}
-
-// Define proxy options
-const serviceOptions: { [key: string]: Options } = {
+// By removing the explicit type annotation, TypeScript can infer the precise shape
+// of the object, eliminating the possibility of a property being 'undefined'.
+const serviceOptions = {
     users: {
         target: 'http://users-service:8081', // The internal Docker service name
         changeOrigin: true,
         pathRewrite: { '^/api/users': '' }, // Remove the prefix
-        logProvider: logProvider,
     },
     products: {
         target: 'http://products-service:8082',
         changeOrigin: true,
         pathRewrite: { '^/api/products': '' },
-        logProvider: logProvider,
     },
     inventory: {
         target: 'http://inventory-service:8083',
         changeOrigin: true,
         pathRewrite: { '^/api/inventory': '' },
-        logProvider: logProvider,
     },
     cart: {
         target: 'http://cart-service:8084',
         changeOrigin: true,
         pathRewrite: { '^/api/cart': '' },
-        logProvider: logProvider,
     },
     orders: {
         target: 'http://orders-service:8085',
         changeOrigin: true,
         pathRewrite: { '^/api/orders': '' },
-        logProvider: logProvider,
     },
 };
 
